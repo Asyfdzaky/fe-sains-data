@@ -48,11 +48,6 @@ const menuItems = [
     href: "/dashboard/upload",
   },
   {
-    title: "RFM Analysis",
-    icon: BarChart3,
-    href: "/dashboard/analysis",
-  },
-  {
     title: "Customer Segments",
     icon: Users,
     href: "/dashboard/segments",
