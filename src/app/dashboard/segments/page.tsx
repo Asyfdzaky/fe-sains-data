@@ -148,8 +148,8 @@ export default function SegmentsPage() {
     const newInsights: Record<number, any> = {};
 
     try {
-      // Process clusters in parallel
-      const promises = activeClusters.map(async (clusterId) => {
+      // Process clusters sequentially to avoid Rate Limits / Context issues
+      for (const clusterId of activeClusters) {
         const clusterData = results.filter((r) => r.cluster === clusterId);
         const total = clusterData.length;
         const avgR =
@@ -169,13 +169,16 @@ export default function SegmentsPage() {
             label: DEFAULT_INSIGHTS[clusterId] || `Cluster ${clusterId}`,
           });
           newInsights[clusterId] = response.data;
+
+          // Update state immediately so user sees progress
+          setAiInsights((prev) => ({ ...prev, [clusterId]: response.data }));
+
+          // Small delay between requests to be safe
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         } catch (e) {
           console.error(`Failed insights for cluster ${clusterId}`, e);
         }
-      });
-
-      await Promise.all(promises);
-      setAiInsights((prev) => ({ ...prev, ...newInsights }));
+      }
     } catch (err) {
       console.error("Bulk AI Error", err);
       alert("Failed to generate some insights. Please try again.");
@@ -456,16 +459,10 @@ export default function SegmentsPage() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          {insight ? (
-                            <span className="text-xs font-medium px-2 py-1 rounded bg-indigo-100 text-indigo-800">
-                              {DEFAULT_INSIGHTS[row.cluster] ||
-                                `Cluster ${row.cluster}`}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground italic">
-                              -
-                            </span>
-                          )}
+                          <span className="text-xs font-medium px-2 py-1 rounded bg-indigo-100 text-indigo-800">
+                            {DEFAULT_INSIGHTS[row.cluster] ||
+                              `Cluster ${row.cluster}`}
+                          </span>
                         </TableCell>
                       </TableRow>
                     );

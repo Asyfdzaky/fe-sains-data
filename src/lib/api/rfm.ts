@@ -70,15 +70,22 @@ export const rfmApi = {
     label: string;
   }): Promise<{ data: any }> {
     const token = getToken();
-    const response = await fetch(`${API_BASE_URL}/rfm/insight`, {
+    // Call internal Next.js API route instead of Backend
+    const response = await fetch(`/api/insight`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        // Authorization header is not needed for internal route if we don't protect it middleware-side yet,
+        // but kept if you want to verify user session in the route (which is good practice).
+        // For now, removing Auth header for internal call to simplify, or passing it if route checks it.
+        // Let's pass it just in case we add auth check later.
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(data),
     });
     if (!response.ok) throw new Error("Failed to fetch insight");
-    return response.json();
+    const jsonData = await response.json();
+    // Wrap in 'data' to match the Promise<{ data: any }> return type
+    return { data: jsonData };
   },
 };
