@@ -46,6 +46,9 @@ export default function UploadPage() {
   const [previewColumns, setPreviewColumns] = useState<string[]>([]);
   const [missingColumns, setMissingColumns] = useState<string[]>([]);
   const [isParsing, setIsParsing] = useState(false);
+  const [processingStage, setProcessingStage] = useState<
+    "idle" | "uploading" | "processing" | "complete"
+  >("idle");
 
   useEffect(() => {
     loadHistory();
@@ -129,32 +132,26 @@ export default function UploadPage() {
     setIsUploading(true);
     setError(null);
     setSuccess(null);
+    setProcessingStage("uploading");
 
-    // Two-step process: Upload -> Process with AI/RFM
     try {
-      // 1. Upload
+      // Stage 1: Upload File
       const uploadResp = await uploadApi.uploadFile(file);
 
-      // 2. Process
-      // We start processing immediately
-      setIsUploading(true); // Keep loading true
-      // Maybe add a specific 'processing' state if we want to change text dynamically,
-      // but for now we can just rely on the UI checking isUploading
-
-      // We will show "Processing" text in the button by checking isUploading
-      // Note: In a real app we might want separate states, but let's keep it simple.
-
+      // Stage 2: Process RFM
+      setProcessingStage("processing");
       await rfmApi.process(uploadResp.upload_id);
 
-      // Save ID for auto-selection in segments page
+      // Stage 3: Complete & Redirect
+      setProcessingStage("complete");
       localStorage.setItem(
         "last_processed_file_id",
         uploadResp.upload_id.toString()
       );
 
-      setSuccess("File uploaded and processed successfully! Redirecting...");
+      setSuccess("Analysis complete! Redirecting to results...");
 
-      // Redirect to results
+      // Redirect after short delay
       setTimeout(() => {
         window.location.href = "/dashboard/segments";
       }, 1500);
@@ -169,15 +166,8 @@ export default function UploadPage() {
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Operation failed. Please try again.");
+      setProcessingStage("idle");
     } finally {
-      // Only stop loading if we failed (because success redirects)
-      // or if we decide not to redirect immediately.
-      // But we set a timeout for redirect, so we can clear it.
-      // Ideally we keep it true until redirect, but if error happens we must clear.
-
-      // Logic: If error is set, clear loading. If success, keep loading until redirect?
-      // Actually safe to always clear for now, the toast/success message persists.
-      // But button re-enables. Let's keep it simple.
       setIsUploading(false);
     }
   };
@@ -301,6 +291,59 @@ export default function UploadPage() {
                 <div className="flex items-center gap-2 p-3 text-sm text-green-600 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-900">
                   <CheckCircle2 className="h-4 w-4" />
                   {success}
+                </div>
+              )}
+
+              {/* Progress Indicator */}
+              {isUploading && (
+                <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-900">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <Clock className="h-5 w-5 text-blue-600 animate-spin" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        {processingStage === "uploading" && "Uploading file..."}
+                        {processingStage === "processing" &&
+                          "Running RFM Analysis (this may take a minute)..."}
+                        {processingStage === "complete" && "Complete!"}
+                      </p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                        {processingStage === "uploading" &&
+                          "Sending your data to the server"}
+                        {processingStage === "processing" &&
+                          "AI is analyzing customer segments"}
+                        {processingStage === "complete" &&
+                          "Preparing your results..."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Progress Steps */}
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`flex-1 h-1.5 rounded-full ${
+                        processingStage !== "idle"
+                          ? "bg-blue-600"
+                          : "bg-blue-200"
+                      }`}
+                    />
+                    <div
+                      className={`flex-1 h-1.5 rounded-full ${
+                        processingStage === "processing" ||
+                        processingStage === "complete"
+                          ? "bg-blue-600"
+                          : "bg-blue-200"
+                      }`}
+                    />
+                    <div
+                      className={`flex-1 h-1.5 rounded-full ${
+                        processingStage === "complete"
+                          ? "bg-blue-600"
+                          : "bg-blue-200"
+                      }`}
+                    />
+                  </div>
                 </div>
               )}
 
