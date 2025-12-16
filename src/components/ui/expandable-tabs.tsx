@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useOnClickOutside } from "usehooks-ts";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 
@@ -60,12 +59,33 @@ export function ExpandableTabs({
   onChange,
 }: ExpandableTabsProps) {
   const [selected, setSelected] = React.useState<number | null>(null);
-  const outsideClickRef = React.useRef<HTMLDivElement>(null);
+  const [containerElement, setContainerElement] =
+    React.useState<HTMLDivElement | null>(null);
 
-  useOnClickOutside(outsideClickRef as any, () => {
-    setSelected(null);
-    onChange?.(null);
-  });
+  // Use ref callback instead of useRef to avoid type issues
+  const handleRef = React.useCallback((node: HTMLDivElement | null) => {
+    setContainerElement(node);
+  }, []);
+
+  // Only call useOnClickOutside when we have a valid element
+  React.useEffect(() => {
+    if (!containerElement) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (!containerElement.contains(event.target as Node)) {
+        setSelected(null);
+        onChange?.(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [containerElement, onChange]);
 
   const handleSelect = (index: number) => {
     setSelected(index);
@@ -78,7 +98,7 @@ export function ExpandableTabs({
 
   return (
     <div
-      ref={outsideClickRef}
+      ref={handleRef}
       className={cn(
         "flex flex-wrap items-center gap-2 rounded-2xl border bg-background p-1 shadow-sm",
         className
