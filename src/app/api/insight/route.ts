@@ -5,7 +5,7 @@ export async function POST(req: Request) {
     const { cluster, recency, frequency, monetary, total, label } =
       await req.json();
 
-    const apiKey = "AIzaSyDWBqG3JtXmo1CogfFJzhA-4dss4CI-KUg";
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
